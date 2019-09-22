@@ -1,0 +1,175 @@
+---
+title: "CANSSI Challenge"
+author: "Titus"
+date: '2019-09-14'
+output: html_document
+---
+
+```{r}
+library(mice)
+library(dplyr)
+test = read.csv("test.csv")
+vancouver = read.csv("vancouver.csv")
+train = read.csv("train.csv")
+traffic = read.csv("traffic.csv")
+victoria = read.csv("victoria.csv")
+```
+
+```{r}
+#Format the time date to join in to the training set, timezone GMT is used to avoid converstion error in PDT
+#The time in the training set is round to hourly to better match the time in the weather data set
+vancouver$formatedTimeDate = as.POSIXct(strptime(vancouver$Date.Time, "%Y-%m-%d %H:%M:%S"),tz = "GMT")
+victoria$formatedTimeDate = as.POSIXct(strptime(victoria$Date.Time, "%Y-%m-%d %H:%M:%S"),tz = "GMT")
+correctTime = format(strptime(train$Scheduled.Departure, "%I:%M %p"), format="%H:00:00")
+correctDate = paste(train$Year,"-",match(train$Month,month.name),"-",train$Day.of.Month,sep = "")
+correctTimeDate = paste(correctDate,correctTime)
+train$formatedTimeDate = as.POSIXct(strptime(correctTimeDate,"%Y-%m-%d %H:%M:%S"),tz = "GMT")
+VanWeather = vancouver[vancouver$formatedTimeDate >= "2016-08-28 05:15:00" &
+                            vancouver$formatedTimeDate <= "2017-11-27 22:45:00",]
+VictWeather = victoria[victoria$formatedTimeDate >= "2016-08-28 05:15:00" &
+                            victoria$formatedTimeDate <= "2017-11-27 22:45:00",]
+```
+
+
+```{r}
+#Joining the data using left join and droping redudants columns
+train.merged = left_join(train,VanWeather,by = "formatedTimeDate")
+train.merged = left_join(train.merged,VictWeather,by = "formatedTimeDate")
+train.merged = select(train.merged,
+                      -c(Date.Time.x,Date.Time.y,Year.y,Month.y,Day.y,Time.x,Weather,
+                         Full.Date,Year.x,Hour.x,Humidex.in.Celsius,Time.y,Year,Month,Day,Hour.y))
+
+#Change the NA and the blank factor to Unknown and droping unused factor level
+# mylevel = levels(train.merged$Vict.Weather.Status)
+# mylevel[length(mylevel) + 1] = "Unknown"
+# train.merged$Weather = factor(train.merged$Weather,levels = mylevel)
+# train.merged$Weather[is.na(train.merged$Weather)] = "Unknown"
+# train.merged$Weather[train.merged$Weather == ""] = "Unknown"
+# levels(droplevels(train.merged$Weather))
+#impute missing data from selected columns
+tempData = mice(select(train.merged,
+                       Temperature.in.Celsius.x,
+                       Dew.Point.Temperature.in.Celsius.x,
+                       Relative.Humidity.in.Percent.x,
+                       Temperature.in.Celsius.y,
+                       Dew.Point.Temperature.in.Celsius.y,
+                       Relative.Humidity.in.Percent.y,
+                       Wind.Direction.in.Degrees,
+                       Wind.Speed.km.per.h,
+                       Visibility.in.km,
+                       Station.Pressure.in.kPa),
+                m=5,maxit = 5,method = "pmm",seed = 500)
+completeData = complete(tempData,1)
+#Drop old data that was use to impute
+
+train.merged = select(train.merged,
+                      -c(Temperature.in.Celsius.x,
+                       Dew.Point.Temperature.in.Celsius.x,
+                       Relative.Humidity.in.Percent.x,
+                       Temperature.in.Celsius.y,
+                       Dew.Point.Temperature.in.Celsius.y,
+                       Relative.Humidity.in.Percent.y,
+                       Wind.Direction.in.Degrees,
+                       Wind.Speed.km.per.h,
+                       Visibility.in.km,
+                       Station.Pressure.in.kPa,
+                       Trip.Duration))
+names(completeData) = c("VanTemp_C","Van.DewPointTemp_C",
+                        "VanRelativeHumid_Percent","VictTemp_C",
+                        "VictDewPointTemp_C","VictRelativeHumid_Percent",
+                        "VictWindDirection_Deg","VictWindSpeed_kmh",
+                        "VictVisibility_km","VictStaionPressure_kPa")
+names(train.merged)[5:6] = c("Day","Month")
+train.merged = cbind(train.merged,completeData)
+
+```
+
+
+```{r}
+correctTime = format(strptime(test$Scheduled.Departure, "%I:%M %p"), format="%H:00:00")
+correctDate = paste(test$Year,"-",match(test$Month,month.name),"-",test$Day.of.Month,sep = "")
+correctTimeDate = paste(correctDate,correctTime)
+test$formatedTimeDate = as.POSIXct(strptime(correctTimeDate,"%Y-%m-%d %H:%M:%S"),tz = "GMT")
+VanWeather2 = vancouver[vancouver$formatedTimeDate >= "2017-11-27 05:00:00" &
+                            vancouver$formatedTimeDate <= "2018-03-30 22:00:00",]
+VictWeather2 = victoria[victoria$formatedTimeDate >= "2017-11-27 05:00:00" &
+                            victoria$formatedTimeDate <= "2018-03-30 22:00:00",]
+
+
+test.merged = left_join(test,VanWeather2,by = "formatedTimeDate")
+test.merged = left_join(test.merged,VictWeather2,by = "formatedTimeDate")
+test.merged = select(test.merged,
+                      -c(Date.Time.x,Date.Time.y,Year.y,Month.y,Day.y,Time.x,Weather,
+                         Full.Date,Year.x,Hour.x,Humidex.in.Celsius,Time.y,Year,Month,Day,Hour.y))
+
+tempData2 = mice(select(test.merged,
+                       Temperature.in.Celsius.x,
+                       Dew.Point.Temperature.in.Celsius.x,
+                       Relative.Humidity.in.Percent.x,
+                       Temperature.in.Celsius.y,
+                       Dew.Point.Temperature.in.Celsius.y,
+                       Relative.Humidity.in.Percent.y,
+                       Wind.Direction.in.Degrees,
+                       Wind.Speed.km.per.h,
+                       Visibility.in.km,
+                       Station.Pressure.in.kPa),
+                m=5,maxit = 5,method = "pmm",seed = 500)
+completeData2 = complete(tempData2,1)
+
+test.merged = select(test.merged,
+                      -c(Temperature.in.Celsius.x,
+                       Dew.Point.Temperature.in.Celsius.x,
+                       Relative.Humidity.in.Percent.x,
+                       Temperature.in.Celsius.y,
+                       Dew.Point.Temperature.in.Celsius.y,
+                       Relative.Humidity.in.Percent.y,
+                       Wind.Direction.in.Degrees,
+                       Wind.Speed.km.per.h,
+                       Visibility.in.km,
+                       Station.Pressure.in.kPa))
+names(completeData2) = c("VanTemp_C","Van.DewPointTemp_C",
+                        "VanRelativeHumid_Percent","VictTemp_C",
+                        "VictDewPointTemp_C","VictRelativeHumid_Percent",
+                        "VictWindDirection_Deg","VictWindSpeed_kmh",
+                        "VictVisibility_km","VictStaionPressure_kPa")
+names(test.merged)[5:6] = c("Day","Month")
+test.merged = cbind(test.merged,completeData2)
+
+col1 = levels(test.merged$Scheduled.Departure)
+col2 = levels(train.merged$Scheduled.Departure)
+timelevel <- unique(c(col1, col2))
+train.merged$Scheduled.Departure = factor(test.merged$Scheduled.Departure,levels = timelevel)
+test.merged$Scheduled.Departure = factor(test.merged$Scheduled.Departure,levels = timelevel)
+```
+
+
+```{r}
+
+mymodel = glm(formula = Delay.Indicator ~ VanTemp_C + 
+                Van.DewPointTemp_C + 
+                VictTemp_C +
+                VanRelativeHumid_Percent +
+                VictWindDirection_Deg +
+                VictWindSpeed_kmh +
+                VictVisibility_km +
+                VictStaionPressure_kPa +
+                VictDewPointTemp_C + 
+                VictTemp_C + 
+                VictRelativeHumid_Percent +
+                Vessel.Name +
+                Day + Day.of.Month + 
+                Month + Trip +
+                Scheduled.Departure, family = binomial,data = train.merged)
+summary(mymodel)
+```
+
+```{r}
+mprediction = predict(mymodel,test.merged,type = "response")
+mpredict = data.frame(mprediction)
+table(train.merged$Delay.Indicator)
+result=ifelse(mpredict$mprediction>=0.5,1,0)
+result
+#final_result = cbind(test.merged$ID,ifelse(mpredict$mprediction>=0.5,1,0))
+#final_result = data.frame(final_result)
+```
+
