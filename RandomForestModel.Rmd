@@ -1,0 +1,75 @@
+---
+title: "randomForest model"
+author: "Yingxin Kong"
+date: '2019-09-14'
+output: html_document
+---
+
+```{r}
+library(stringr)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(mice)
+library(randomForest)
+library(lattice)
+library(caret)
+ train = read.csv("train_mod2.csv")
+# test = read.csv("test.csv")
+# traffic = read.csv("traffic.csv")
+# van = read.csv("vancouver.csv")
+# vic = read.csv("victoria.csv")
+```
+
+
+```{r}
+train=select(train,-Date.Time,-X,-Year)
+newname=c("Vessel_Name","Departure","Arrive",
+         "Scheduled_Departure","Day_of_Month","Delay_Indicator",
+         "Month","Day","Hour",
+         "Traffic","Van_Temp_Cel","Van_Dew_Point_Temp_Cel",
+         "Van_Relative_Humidity_Per","Vic_Temp_Cel","Vic_Dew_Point_Temp_Cel",
+         "Vic_Relative_Humidity_Per","Vic_Wind_Direct_Deg","Vic_Wind_Speed",
+         "Vic_Visibility","Vic_Station_Pressure")
+colnames(train)=newname
+```
+
+```{r}
+train$Traffic=as.factor(round(train$Traffic))
+train$Hour =as.factor(train$Hour)
+train$Day_of_Month =as.factor(train$Day_of_Month)
+train$Delay_Indicator =as.factor(train$Delay_Indicator)
+```
+
+```{r}
+input_one = train[which(train$Delay_Indicator==1),]
+input_zero = train[which(train$Delay_Indicator==0),]
+
+set.seed(110)
+onetrainNum = sample(1:nrow(input_one), 0.7*nrow(input_one))
+zerotrainNum = sample(1:nrow(input_zero), 0.7*nrow(input_one))
+ 
+onetrain = input_one[onetrainNum,]
+zerotrain = input_zero[zerotrainNum,]
+trainData = rbind(onetrain,zerotrain)
+
+onetest = input_one[-onetrainNum,]
+zerotest = input_zero[-zerotrainNum,]
+testData = rbind(onetest,zerotest)
+```
+
+```{r}
+trainData=select(trainData,-Scheduled_Departure,-Vessel_Name)
+rf=randomForest(Delay_Indicator~.,data = trainData,mtry=4,ntree=2001,importance=TRUE)
+#rf
+```
+
+```{r}
+testData=select(testData,-Scheduled_Departure,-Vessel_Name)
+
+result=data.frame(Indicator= testData$Delay_Indicator, 
+                  predict_Indicator = predict(rf,testData[,-4],type="response"))
+
+confusionMatrix(result$Indicator,result$predict_Indicator)
+```
+
