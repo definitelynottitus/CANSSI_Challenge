@@ -9,11 +9,14 @@ output: html_document
 library(mice)
 library(dplyr)
 library(pscl)
+library(caret)
 test = read.csv("test.csv")
 vancouver = read.csv("vancouver.csv")
 train = read.csv("train.csv")
 traffic = read.csv("traffic.csv")
 victoria = read.csv("victoria.csv")
+train.merge2 = read.csv("train_mod2.csv")
+train.merge2 = dplyr::select(train.merge2,-X)
 ```
 
 ```{r}
@@ -137,10 +140,48 @@ test.merged$Scheduled.Departure = factor(test.merged$Scheduled.Departure,levels 
 
 
 ```{r}
-mymodel = glm(formula = Delay.Indicator ~ Vessel.Name + 
-                , family = binomial,data = train.merged)
-summary(mymodel)
-pR2(mymodel)
+trainset = createDataPartition(train.merge2$Delay.Indicator, p = .6, list = FALSE)
+training = train.merge2[trainset,]
+testing = train.merge2[-trainset,]
+
+ctrl = trainControl(method = "repeatedcv", number = 10, savePredictions = TRUE)
+colnames(train.merge2)
+mod_fit = train(Delay.Indicator ~
+                  Vessel.Name + 
+                  Departure +
+                  Arrive + 
+                  ave.traffic +
+                  Van_Temp_Cel +
+                  Van_Relative_Humidity_Per +
+                  Vic_Temp_Cel +
+                  Vic_Wind_Speed +
+                  Vic_Relative_Humidity_Per +
+                  Vic_Visibility +
+                  Vic_Station.Pressure +
+                  Day + Month + Hour +
+                  Day.of.Month +
+                  Day:ave.traffic +
+                  Hour:ave.traffic +
+                  Departure:ave.traffic,
+                data = train.merge2,
+                method="glm",
+                family="binomial",
+                trControl = ctrl,
+                tuneLength = 5)
+
+pred = data.frame(predict(mod_fit, newdata = testing))
+
+pred$Delay.Indicator = ifelse(pred$predict.mod_fit..newdata...testing. >= 0.5,1,0)
+pred$Delay.Indicator = factor(pred$Delay.Indicator)
+
+testing$Delay.Indicator = factor(testing$Delay.Indicator)
+pred = select(pred,-predict.mod_fit..newdata...testing.)
+
+levels(pred$Delay.Indicator)
+levels(testing$Delay.Indicator)
+confusionMatrix(data = pred$Delay.Indicator, testing$Delay.Indicator)
+
+
 ```
 
 ```{r}
