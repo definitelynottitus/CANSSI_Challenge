@@ -1,0 +1,110 @@
+---
+title: "Data cleaning"
+author: "Titus"
+date: '2019-09-25'
+output: pdf_document
+---
+all libraries used goes here
+```{r}
+library(ggplot2)
+library(dplyr)
+library(mice)
+library(lubridate)
+```
+read all the files
+```{r}
+test = read.csv("test.csv")
+train = read.csv("train.csv")
+traffic = read.csv("traffic.csv")
+vancouver = read.csv("vancouver.csv")
+victoria = read.csv("victoria.csv")
+```
+
+fixing time and date for all the data sets
+```{r}
+# Main training data time
+correctTime = format(strptime(train$Scheduled.Departure, "%I:%M %p",tz = "America/Vancouver"), format="%H:%M:%S")
+correctDate = paste(train$Year,match(train$Month,month.name),train$Day.of.Month,sep = "-")
+correctTimeDate = paste(correctDate,correctTime)
+train$Full.Date = as.POSIXct(strptime(correctTimeDate,"%Y-%m-%d %H:%M:%S"),tz = "America/Vancouver")
+
+# Traffic Data time column
+correctDate = paste(traffic$Year,
+                    traffic$Month,
+                    traffic$Day,
+                    sep = "-")
+
+hour_minute = format(
+  strptime(
+    paste(
+      traffic$Hour,
+      traffic$Minute,
+      sep = ":"),format = "%H:%M",
+     tz = "America/Vancouver"),"%H:%M")
+
+seconds = format(strptime(traffic$Second,"%S",tz = "America/Vancouver"),"%S")
+correctTime = paste(hour_minute,seconds,sep = ":")
+correctTimeDate = paste(correctDate,correctTime)
+
+traffic$Full.Date = as.POSIXct(
+  strptime(correctTimeDate,
+           "%Y-%m-%d %H:%M:%S"),
+  tz = "America/Vancouver")
+
+traffic$Full.Date = floor_date(traffic$Full.Date,"5 minutes")
+# Weather time data
+vancouver$Full.Date = as.POSIXct(strptime(
+  vancouver$Date.Time,
+  "%Y-%m-%d %H:%M:%S"),
+  tz = "America/Vancouver")
+victoria$Full.Date = as.POSIXct(strptime(
+  victoria$Date.Time,
+  "%Y-%m-%d %H:%M:%S"),
+  tz = "America/Vancouver")
+```
+Merging everything in to one training set
+```{r}
+train_v2 = left_join(train,select(traffic_train,c(Full.Date,Traffic.Ordinal)),by = "Full.Date")
+train_v2 = distinct(train_v2)
+train_v2[is.na(train_v2$Traffic.Ordinal),]
+# names(vancouver)[6:8] = c("VanTemp_C",
+#                           "VanDewPoint_C",
+#                           "VanHumidity_Per")
+# names(victoria)[6:12] = c("VicTemp_C",
+#                           "VicDewPoint_C",
+#                           "VicHumidity_Per",
+#                           "VicWindDir_Deg",
+#                           "VicWindSpeed_kmh",
+#                           "Vic_Visibility_km",
+#                           "VicStationPressure_kPa")
+# 
+# train_v2 = left_join(train_v2,
+#                      select(vancouver,
+#                             c(Full.Date,
+#                               VanTemp_C,
+#                               VanDewPoint_C,
+#                               VanHumidity_Per)),by = "Full.Date")
+# 
+# train_v2 = left_join(train_v2,
+#                      select(victoria,
+#                           c(Full.Date,
+#                           VicTemp_C,
+#                           VicDewPoint_C,
+#                           VicHumidity_Per,
+#                           VicWindDir_Deg,
+#                           VicWindSpeed_kmh,
+#                           Vic_Visibility_km,
+#                           VicStationPressure_kPa)),by = "Full.Date")
+# # Revert train time back to normal
+# correctTime = format(strptime(train$Scheduled.Departure, "%I:%M %p",tz = "America/Vancouver"), format="%H:%M:%S")
+# correctDate = paste(train$Year,match(train$Month,month.name),train$Day.of.Month,sep = "-")
+# correctTimeDate = paste(correctDate,correctTime)
+# train$Full.Date = as.POSIXct(strptime(correctTimeDate,"%Y-%m-%d %H:%M:%S"),tz = "America/Vancouver")
+```
+Impute all missing data
+```{r}
+
+summary(train_v2)
+```
+
+
