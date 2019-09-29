@@ -73,3 +73,10 @@ fourth_pred = data.frame(cbind(mDat2$ID,pred2))
 names(fourth_pred) = c("ID","Delay.Indicator")
 write.csv(fourth_pred,"fourth_Pred.csv",row.names = F)
 ```
+
+```{r}
+test=read.csv("test.csv")
+train=read.csv("train.csv")
+str(test)
+str(train)
+```
