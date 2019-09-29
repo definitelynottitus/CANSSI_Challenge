@@ -9,26 +9,67 @@ output: pdf_document
 library(xgboost)
 library(caret)
 library(dplyr)
+library(doSNOW)
 ```
 
 ```{r}
 # Load the data 
 mDat = read.csv("train_v3.csv")
 mDat2 = read.csv("test_v3.csv")
+
+
 # clean the data
+mDat$Month = as.numeric(match(mDat$Month,month.name))
 mDat$Delay.Indicator = as.factor(mDat$Delay.Indicator)
-temp = select(mDat,Trip,Day.of.Month,Delay.Indicator)
+mDat$Day = as.numeric(mDat$Day)
 
-index = createDataPartition(temp$Delay.Indicator,p = 0.6, list = FALSE)
+index = createDataPartition(mDat$Delay.Indicator,p = 0.6, list = FALSE)
 
-train.data  <- temp[index, ]
-test.data <- temp[-index, ]
+train.data  <- mDat[index, ]
+test.data <- mDat[-index, ]
 
 ```
 
 ```{r}
+train.control <- trainControl(method = "repeatedcv",
+                              number = 10,
+                              repeats = 3,
+                              search = "grid")
+
+tune.grid <- expand.grid(eta = c(0.05, 0.075, 0.1),
+                         nrounds = c(50, 75, 100),
+                         max_depth = 6:8,
+                         min_child_weight = c(2.0, 2.25, 2.5),
+                         colsample_bytree = c(0.3, 0.4, 0.5),
+                         gamma = 0,
+                         subsample = 1)
+
+cl <- makeCluster(10, type = "SOCK")
+registerDoSNOW(cl)
+
+
 model = train(Delay.Indicator~.,
               data = train.data,method = "xgbTree",
-              trControl = trainControl("cv",number = 10))
-model$bestTune
+              tuneGrid = tune.grid,
+              trControl = train.control)
+
+stopCluster(cl)
+
+
+model
+```
+
+
+```{r}
+pred = predict(model,test.data)
+confusionMatrix(pred,test.data$Delay.Indicator)
+```
+
+```{r}
+mDat2$Month = as.numeric(match(mDat2$Month,month.name))
+mDat2$Day = as.numeric(mDat2$Day)
+pred2 = predict(model,mDat2)
+fourth_pred = data.frame(cbind(mDat2$ID,pred2))
+names(fourth_pred) = c("ID","Delay.Indicator")
+write.csv(fourth_pred,"fourth_Pred.csv",row.names = F)
 ```
