@@ -14,8 +14,8 @@ library(doSNOW)
 
 ```{r}
 # Load the data 
-mDat = read.csv("train_v3.csv")
-mDat2 = read.csv("test_v3.csv")
+mDat = read.csv("data/t-rain_v3.csv")
+mDat2 = read.csv("data/test_v3.csv")
 
 
 # clean the data
@@ -37,7 +37,7 @@ train.control <- trainControl(method = "repeatedcv",
                               search = "grid")
 
 tune.grid <- expand.grid(eta = c(0.05, 0.075, 0.1),
-                         nrounds = c(50, 75, 100),
+                         nrounds = c(100, 250, 500),
                          max_depth = 6:8,
                          min_child_weight = c(2.0, 2.25, 2.5),
                          colsample_bytree = c(0.3, 0.4, 0.5),
@@ -72,11 +72,4 @@ pred2 = predict(model,mDat2)
 fourth_pred = data.frame(cbind(mDat2$ID,pred2))
 names(fourth_pred) = c("ID","Delay.Indicator")
 write.csv(fourth_pred,"fourth_Pred.csv",row.names = F)
-```
-
-```{r}
-test=read.csv("test.csv")
-train=read.csv("train.csv")
-str(test)
-str(train)
 ```
