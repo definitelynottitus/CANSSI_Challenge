@@ -1,0 +1,34 @@
+---
+title: "Xgboost"
+author: "Titus"
+date: '2019-09-28'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(xgboost)
+library(caret)
+library(dplyr)
+```
+
+```{r}
+# Load the data 
+mDat = read.csv("train_v3.csv")
+mDat2 = read.csv("test_v3.csv")
+# clean the data
+mDat$Delay.Indicator = as.factor(mDat$Delay.Indicator)
+temp = select(mDat,Trip,Day.of.Month,Delay.Indicator)
+
+index = createDataPartition(temp$Delay.Indicator,p = 0.6, list = FALSE)
+
+train.data  <- temp[index, ]
+test.data <- temp[-index, ]
+
+```
+
+```{r}
+model = train(Delay.Indicator~.,
+              data = train.data,method = "xgbTree",
+              trControl = trainControl("cv",number = 10))
+model$bestTune
+```

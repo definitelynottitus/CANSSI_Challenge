@@ -6,5 +6,46 @@ output: pdf_document
 ---
 
 ```{r}
+library(adabag)
+library(caret)
+library(dplyr)
+library(ROSE)
+mData = read.csv("train_v2.csv")
+realTest = read.csv("test_v2.csv")
 
+mData$Delay.Indicator = as.factor(mData$Delay.Indicator)
+mData = ROSE(Delay.Indicator ~., data = mData)$data
+
+col1 = levels(mData$Full.Date)
+col2 = levels(realTest$Full.Date)
+timelevel <- unique(c(col1, col2))
+mData$Full.Date = factor(realTest$Full.Date,levels = timelevel)
+realTest$Full.Date = factor(realTest$Full.Date,levels = timelevel)
+
+index = createDataPartition(mData$Delay.Indicator,p = .6,list = F)
+train = mData[index,]
+test = mData[-index,]
+
+table(train$Delay.Indicator)
+
+```
+
+```{r}
+model = boosting(Delay.Indicator ~. ,data = train, boos = T,mfinal = 99)
+pred = predict(model, test)
+```
+
+```{r}
+test$Delay.Indicator = as.factor(test$Delay.Indicator)
+confusionMatrix(as.factor(pred$class),test$Delay.Indicator)
+```
+
+```{r}
+real_pred = predict(model, realTest)
+```
+
+```{r}
+third_prediction = data.frame(cbind(realTest$ID,real_pred$class))
+names(third_prediction) = c("ID","Delay.Indicator")
+write.csv(third_prediction,"third_prediction.csv",row.names = F)
 ```
