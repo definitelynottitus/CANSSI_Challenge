@@ -10,5 +10,8 @@
   <li><strong>Extreme Gradient Boosting</strong></li>
 </ul>
 <h3>The rationale behind our model</h3>
-<p> From the BC Ferry website we are able to obtain the information that heavy traffic and procedual issues combine account for 80% of the delay. We enginerred a new binary feature from the existing scheduel departure time column to seperate national and provincal holidays and weekends. The goal of this feature is to let models better highlight days which are more likely to be delayed due to heavy traffic from either holiday season or in the weekends.</p>
+<p>From the BC Ferry website we are able to obtain the information that heavy traffic and procedual issues combine account for 80% of the delay. Because of this fact, the model we build is design to mainly focus this part of the delay. Moreover, this part of the delay are most consistent compare to delay cause by weathers.</p>
+<ul>
+  <li>We enginerred a new binary feature from the existing scheduel departure time column to seperate national and provincal holidays and weekends. The goal of this feature is to let models better highlight days which are more likely to be delayed due to heavy traffic from either holiday season or in the weekends.</li>
+  <li>
     
