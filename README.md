@@ -1,3 +1,3 @@
-# CANSSI_Challenge
-# This is used to illustrate the working progress of a challenge of predicting BCFerry lateness by using provided data
+# CANSSI BC Ferry Lateliness Prediction Challenge
+<a href="http://www.canssi.ca/news-events/canssi-datathon-2019/">Click here to see description of the challenge</a>
 <p>Currently working on building a logistic regression model using covariate data provided</p>
